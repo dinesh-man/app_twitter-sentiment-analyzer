@@ -3,6 +3,7 @@ package connectTwitter
 import (
 "github.com/dghubble/go-twitter/twitter"
 "github.com/dghubble/oauth1"
+"fmt"
 )
 
 type Credentials struct {

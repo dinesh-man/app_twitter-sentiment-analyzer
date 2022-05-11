@@ -1,4 +1,4 @@
-package analyzeTweets
+package src
 
 import (
 	"github.com/dghubble/go-twitter/twitter"

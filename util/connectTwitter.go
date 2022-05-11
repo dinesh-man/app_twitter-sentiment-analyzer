@@ -26,7 +26,7 @@ func GetClient(creds *Credentials) (*twitter.Client, error){
 
 	user, _, err := client.Accounts.VerifyCredentials(verifyParams)
     if err != nil {
-        fmt.Println("Error getting Twitter!!")
+        fmt.Println("Error in GetClient function!!")
 		return nil, err
     }else{
 	fmt.Printf("Authentication Successfull.\nUser Name: %+v\nTwitter Handle: %+v", user.Name, user.ScreenName)

@@ -29,7 +29,7 @@ func GetClient(creds *Credentials) (*twitter.Client, error){
         fmt.Println("Error in GetClient function!\n", err)
 		return nil, err
     }
-	fmt.Printf("*** Authentication Successfull.***\nUser Name: %v\n", user.Name)
+	fmt.Printf("~~~~ Authentication Successfull ~~~~\nUser Name: %v\n~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~", user.Name)
 	return client, nil
 }
 

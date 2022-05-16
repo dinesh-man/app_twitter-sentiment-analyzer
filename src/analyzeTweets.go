@@ -3,6 +3,7 @@ package src
 import (
 	"github.com/dghubble/go-twitter/twitter"
 	"github.com/go-gota/gota/dataframe"
+	"github.com/go-gota/gota/series"
 	"fmt"
 	"encoding/json"
 	"os"
@@ -18,7 +19,7 @@ type SearchTweetContents struct {
 	} `json:"statuses"`
 }
 
-func GetTweets(client *twitter.Client, search_query string) {
+func GetTweets(client *twitter.Client, search_query string, include_retweets bool) {
 
 	fmt.Printf("\nQuery: %v\nSearching...\n", search_query)
 	current_date := time.Now().Format("2006-01-02") //YYYY-MM-DD format
@@ -47,8 +48,21 @@ func GetTweets(client *twitter.Client, search_query string) {
 		fmt.Printf("\n\nTweeted Date: %#v Tweet Content: %#v Likes: %d", value.Tweet_Timestamp, value.Tweet_Text, value.Likes)
 	}*/
 	if len(output.Statuses) > 0 {
-		temp_df := dataframe.LoadStructs(output.Statuses)
-		df := temp_df.Arrange(dataframe.RevSort("Likes")) //Sort by most liked tweets
+
+		FilterReTweets := func (prefix string) func (el series.Element) bool {
+			return func (el series.Element) bool {
+				if strings.HasPrefix(el.Val().(string), prefix) {
+					return false
+				}
+					return true
+			}
+		}
+
+		df := dataframe.LoadStructs(output.Statuses)
+		if !include_retweets {
+			df = df.Filter(dataframe.F{Colname: "Tweet_Text", Comparator: series.CompFunc, Comparando: FilterReTweets("RT")})
+		}
+		df = df.Arrange(dataframe.RevSort("Likes")) //Sort by most liked tweets
 		file_name := "./Twitter-Search-" + strings.Replace(search_query, " ", "_", -1)+ "-" + time.Now().Format("2006-01-02_15:04:05") + ".csv"
 		fmt.Println("Writing search results to file: ", file_name)
 		f, err := os.Create(file_name)

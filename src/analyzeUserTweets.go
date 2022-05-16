@@ -17,7 +17,7 @@ type UserTweetContents struct {
 	Likes			int		`json:"favorite_count"`
 }
 
-func GetUserTweets(client *twitter.Client, twitter_handle string) {
+func GetUserTweets(client *twitter.Client, twitter_handle string, include_retweets bool) {
 
 	fmt.Printf("\nTwitter Handle: %v\nFetching User Timeline...\n", twitter_handle)
 	tweets, resp, err := client.Timelines.UserTimeline(&twitter.UserTimelineParams {
@@ -58,7 +58,9 @@ func GetUserTweets(client *twitter.Client, twitter_handle string) {
 		}
 
 		df := dataframe.LoadStructs(output)
-		df = df.Filter(dataframe.F{Colname: "Tweet_Text", Comparator: series.CompFunc, Comparando: FilterReTweets("RT")})
+		if !include_retweets {
+			df = df.Filter(dataframe.F{Colname: "Tweet_Text", Comparator: series.CompFunc, Comparando: FilterReTweets("RT")})
+		}
 		df = df.Arrange(dataframe.RevSort("Likes")) //Sort by most liked tweets
 		file_name := "./Twitter-UserTimeline-" + strings.Replace(twitter_handle, " ", "_", -1)+ "-" + time.Now().Format("2006-01-02_15:04:05") + ".csv"
 		fmt.Println("Writing user tweets to file: ", file_name)
@@ -68,8 +70,8 @@ func GetUserTweets(client *twitter.Client, twitter_handle string) {
 			os.Exit(1)
 		}
 		df.WriteCSV(f)
-		fmt.Println("Done!  :)")
+		fmt.Println("Done!  :)\n")
+	} else {
+		fmt.Println("No results found! :(")
 	}
-
 }
-

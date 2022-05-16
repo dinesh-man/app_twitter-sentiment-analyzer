@@ -27,12 +27,12 @@ func main() {
 	//command-line inputs
 	search_string := flag.String("s", "", "Use this optional flag to search twitter with a search string.\nInput search string in double quotes.")
 	twitter_user := flag.String("t", "", "Use this optional flag to search timeline of a specific twitter user.\nInput twitter handle of the user in double quotes.")
+	include_retweets := flag.Bool("rt", false, "Use this optional flag (true/false) to include re-tweets as well in the search results.\nBy-default retweets are not included in the search result (it is set to false).")
 	flag.Parse()
 	if flag.NFlag() < 1 {
 		flag.Usage()
 		os.Exit(1)
-	}
-
+	} 
 	fmt.Println("\n**** Twitter Sentiment Analysis Program ****\n")
 	//Authentication using Twitter API keys
 	creds := auth.Credentials {
@@ -49,10 +49,9 @@ func main() {
 	}
 
 	if *search_string != ""{
-		src.GetTweets(client, strings.Trim(*search_string, " "))
+		src.GetTweets(client, strings.Trim(*search_string, " "), *include_retweets)
 	} 
 	if *twitter_user != "" {
-		src.GetUserTweets(client, strings.Trim(*twitter_user, " "))
+		src.GetUserTweets(client, strings.Trim(*twitter_user, " "), *include_retweets)
 	}
-	
 }

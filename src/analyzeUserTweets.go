@@ -4,6 +4,7 @@ import (
 	"github.com/dghubble/go-twitter/twitter"
 	"github.com/go-gota/gota/dataframe"
 	"github.com/go-gota/gota/series"
+	"github.com/jdkato/prose/v2"
 	"fmt"
 	"os"
 	"strings"
@@ -62,7 +63,7 @@ func GetUserTweets(client *twitter.Client, twitter_handle string, include_retwee
 			df = df.Filter(dataframe.F{Colname: "Tweet_Text", Comparator: series.CompFunc, Comparando: FilterReTweets("RT")})
 		}
 		df = df.Arrange(dataframe.RevSort("Likes")) //Sort by most liked tweets
-		file_name := "./Twitter-UserTimeline-" + strings.Replace(twitter_handle, " ", "_", -1)+ "-" + time.Now().Format("2006-01-02_15:04:05") + ".csv"
+		file_name := "./Twitter-UserTimeline_" + strings.Replace(twitter_handle, " ", "_", -1)+ "-" + time.Now().Format("2006-01-02_15:04:05") + ".csv"
 		fmt.Println("Writing user tweets to file: ", file_name)
 		f, err := os.Create(file_name)
 		if err != nil {
@@ -70,7 +71,42 @@ func GetUserTweets(client *twitter.Client, twitter_handle string, include_retwee
 			os.Exit(1)
 		}
 		df.WriteCSV(f)
-		fmt.Println("Done!  :)\n")
+		fmt.Println("File created successfully! :)")
+		fmt.Println("Analyzing tweets...")
+		var tweet_keywords []string
+		for i := range output {
+			//fmt.Printf("\n\nTweet_Timestamp: %v Tweet_Text: %v Likes: %v", output[i].Tweet_Timestamp, output[i].Tweet_Text, output[i].Likes)
+			if include_retweets == false && strings.HasPrefix(output[i].Tweet_Text, "RT"){
+				continue
+			} else {
+				doc, err := prose.NewDocument(strings.Replace(output[i].Tweet_Text, "\n", "", -1))
+				if err != nil {
+					fmt.Println(err)
+				}
+
+				for _, tok := range doc.Tokens() {
+					if tok.Tag == "JJ" || tok.Tag == "VBG" || tok.Tag == "VB" || tok.Tag == "NN" || tok.Tag == "NNS" || tok.Label == "B-GPE" || tok.Label == "B-PERSON" {
+						tweet_keywords = append(tweet_keywords, tok.Text)
+					}
+				}
+			}
+		}
+		df_tk := dataframe.New(series.New(tweet_keywords, series.String, "Tweet_Keywords"))
+		groups := df_tk.GroupBy("Tweet_Keywords")
+		aggre := groups.Aggregation([]dataframe.AggregationType{dataframe.Aggregation_COUNT}, []string{"Tweet_Keywords"})
+		aggre = aggre.Arrange(dataframe.RevSort("Tweet_Keywords_COUNT")) //Sort by most used words
+		//fmt.Printf("\n\n%v\n\n",df)
+		//fmt.Printf("\n\n%v\n\n",aggre)
+		file_name = "./Twitter-UserTimeline-analysis_" + strings.Replace(twitter_handle, " ", "_", -1)+ "-" + time.Now().Format("2006-01-02_15:04:05") + ".csv"
+		fmt.Println("Writing analysis to file: ", file_name)
+		f, err = os.Create(file_name)
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+		aggre.WriteCSV(f)
+		fmt.Println("File created successfully! :)")
+		fmt.Println("Done!  :)")
 	} else {
 		fmt.Println("No results found! :(")
 	}

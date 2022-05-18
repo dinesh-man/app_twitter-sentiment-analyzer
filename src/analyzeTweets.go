@@ -4,6 +4,7 @@ import (
 	"github.com/dghubble/go-twitter/twitter"
 	"github.com/go-gota/gota/dataframe"
 	"github.com/go-gota/gota/series"
+	"github.com/jdkato/prose/v2"
 	"fmt"
 	"encoding/json"
 	"os"
@@ -43,10 +44,7 @@ func GetTweets(client *twitter.Client, search_query string, include_retweets boo
 	json_data := string(bytes)
 	var output SearchTweetContents
 	json.Unmarshal([]byte(json_data), &output)
-	/* Uncomment for debugging
-	for _, value := range output.Statuses{
-		fmt.Printf("\n\nTweeted Date: %#v Tweet Content: %#v Likes: %d", value.Tweet_Timestamp, value.Tweet_Text, value.Likes)
-	}*/
+	
 	if len(output.Statuses) > 0 {
 
 		FilterReTweets := func (prefix string) func (el series.Element) bool {
@@ -63,7 +61,7 @@ func GetTweets(client *twitter.Client, search_query string, include_retweets boo
 			df = df.Filter(dataframe.F{Colname: "Tweet_Text", Comparator: series.CompFunc, Comparando: FilterReTweets("RT")})
 		}
 		df = df.Arrange(dataframe.RevSort("Likes")) //Sort by most liked tweets
-		file_name := "./Twitter-Search-" + strings.Replace(search_query, " ", "_", -1)+ "-" + time.Now().Format("2006-01-02_15:04:05") + ".csv"
+		file_name := "./Twitter-Search_" + strings.Replace(search_query, " ", "_", -1)+ "-" + time.Now().Format("2006-01-02_15:04:05") + ".csv"
 		fmt.Println("Writing search results to file: ", file_name)
 		f, err := os.Create(file_name)
 		if err != nil {
@@ -71,6 +69,41 @@ func GetTweets(client *twitter.Client, search_query string, include_retweets boo
 			os.Exit(1)
 		}
 		df.WriteCSV(f)
+		fmt.Println("File created successfully! :)")
+		fmt.Println("Analyzing tweets...")
+		var tweet_keywords []string
+		for _, value := range output.Statuses {
+			//fmt.Printf("\n\nTweeted Date: %#v Tweet Content: %#v Likes: %d", value.Tweet_Timestamp, value.Tweet_Text, value.Likes)
+			if include_retweets == false && strings.HasPrefix(value.Tweet_Text, "RT"){
+				continue
+			} else {
+				doc, err := prose.NewDocument(strings.Replace(value.Tweet_Text, "\n", "", -1))
+				if err != nil {
+					fmt.Println(err)
+				}
+
+				for _, tok := range doc.Tokens() {
+					if tok.Tag == "JJ" || tok.Tag == "VBG" || tok.Tag == "VB" || tok.Tag == "NN" || tok.Tag == "NNS" || tok.Label == "B-GPE" || tok.Label == "B-PERSON" {
+						tweet_keywords = append(tweet_keywords, tok.Text)
+					}
+				}
+			}
+		}
+		df_tk := dataframe.New(series.New(tweet_keywords, series.String, "Tweet_Keywords"))
+		groups := df_tk.GroupBy("Tweet_Keywords")
+		aggre := groups.Aggregation([]dataframe.AggregationType{dataframe.Aggregation_COUNT}, []string{"Tweet_Keywords"})
+		aggre = aggre.Arrange(dataframe.RevSort("Tweet_Keywords_COUNT")) //Sort by most used words
+		//fmt.Printf("\n\n%v\n\n",df)
+		//fmt.Printf("\n\n%v\n\n",aggre)
+		file_name = "./Twitter-Search-analysis_" + strings.Replace(search_query, " ", "_", -1)+ "-" + time.Now().Format("2006-01-02_15:04:05") + ".csv"
+		fmt.Println("Writing analysis to file: ", file_name)
+		f, err = os.Create(file_name)
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+		aggre.WriteCSV(f)
+		fmt.Println("File created successfully! :)")
 		fmt.Println("Done!  :)")
 	} else {
 		fmt.Println("No results found! :(")
